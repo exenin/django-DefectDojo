@@ -1,0 +1,5 @@
+# Build images
+docker build -t us.gcr.io/privatesharp/defectdojo-django -f Dockerfile.django .
+docker push us.gcr.io/privatesharp/defectdojo-django
+docker build -t us.gcr.io/privatesharp/defectdojo-nginx -f Dockerfile.nginx .
+docker push us.gcr.io/privatesharp/defectdojo-nginx

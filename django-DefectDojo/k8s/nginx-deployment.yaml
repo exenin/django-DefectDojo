@@ -1,0 +1,32 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  namespace: shsp-falco-dd
+  labels:
+    falcoapp: falco-dd-nginx
+  name: nginx
+spec:
+  replicas: 1
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+         falcoapp: falco-dd-nginx
+    spec:
+      containers:
+        #- image: defectdojo/defectdojo-nginx:latest
+      - image: us.gcr.io/privatesharp/defectdojo-nginx
+        name: nginx
+        ports:
+        - containerPort: 8080
+        resources: {}
+        volumeMounts:
+        - mountPath: /etc/ssl/
+          name: tls
+      restartPolicy: Always
+      volumes:
+      - name: tls
+        secret:
+          secretName: privatesharp-tls
+status: {}

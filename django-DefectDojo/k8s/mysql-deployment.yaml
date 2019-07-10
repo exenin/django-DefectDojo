@@ -1,0 +1,45 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  namespace: shsp-falco-dd
+  labels:
+    falcoapp: falco-dd-mysql
+  name: mysql
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        io.kompose.service: mysql
+    spec:
+      containers:
+      - args:
+        - mysqld
+        - --character-set-server=utf8mb4
+        - --collation-server=utf8mb4_unicode_ci
+        env:
+        - name: DD_DATABASE_URL
+          value: mysql://defectdojo:defectdojo@mysql:3306/defectdojo
+        - name: MYSQL_DATABASE
+          value: defectdojo
+        - name: MYSQL_PASSWORD
+          value: defectdojo
+        - name: MYSQL_RANDOM_ROOT_PASSWORD
+          value: "yes"
+        - name: MYSQL_USER
+          value: defectdojo
+        image: mysql:5.7
+        name: mysql
+        resources: {}
+        volumeMounts:
+          - mountPath: /var/lib/mysql
+            name: defectdojo-data1
+      restartPolicy: Always
+      volumes:
+      - name: defectdojo-data1
+        persistentVolumeClaim:
+          claimName: defectdojo-data1
+status: {}

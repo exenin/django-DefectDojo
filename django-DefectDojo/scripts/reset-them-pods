@@ -1,0 +1,1 @@
+kubectl --namespace=shsp-falco-dd get po | cut -d' ' -f1 | xargs kubectl --namespace=shsp-falco-dd delete po

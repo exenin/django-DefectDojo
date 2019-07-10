@@ -1,0 +1,40 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  namespace: shsp-falco-dd
+  labels:
+    falcoapp: falco-dd-uwsgi
+  name: uwsgi
+spec:
+  replicas: 1
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        io.kompose.service: uwsgi
+    spec:
+      containers:
+      - command:
+        - /wait-for-it.sh
+        - mysql:3306
+        - -t
+        - "30"
+        - --
+        - /entrypoint-uwsgi.sh
+        env:
+        - name: DD_ALLOWED_HOSTS
+          value: '*'
+        - name: DD_CELERY_BROKER_PASSWORD
+          value: guest
+        - name: DD_CELERY_BROKER_USER
+          value: guest
+        - name: DD_DATABASE_URL
+          value: mysql://defectdojo:defectdojo@mysql:3306/defectdojo
+        - name: DD_DEBUG
+          value: "off"
+        image: us.gcr.io/privatesharp/defectdojo-django
+        name: uwsgi
+        resources: {}
+      restartPolicy: Always
+status: {}

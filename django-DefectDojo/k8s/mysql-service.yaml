@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: shsp-falco-dd
+  labels:
+    falcoapp: falco-dd-nginx
+  name: nginx
+spec:
+  ports:
+  - name: "8080"
+    port: 8080
+    targetPort: 8080
+  selector:
+    falcoapp: falco-dd-nginx
+status:
+  loadBalancer: {}

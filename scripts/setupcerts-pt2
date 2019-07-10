@@ -1,0 +1,97 @@
+
+# Switch to the last CA in your chain.
+export CA="$(id -F) Minikube CA"
+ca_set_context
+
+# The domain name the certificate will be issued to. If you want to use one
+# certificate per namespace, you can use this:
+TLS_CERT_DOMAIN="${K8S_NAMESPACE}.minikube.local"
+
+# The name under which the certificate password is stored in Keychain.
+TLS_CERT_PASSWORD_NAME="TLS certificate key password for ${TLS_CERT_DOMAIN}"
+
+# Check if password is not in keychain, generate one if not.
+TLS_CERT_PASSWORD="$(security find-generic-password -a ${USER} \
+  -s "${TLS_CERT_PASSWORD_NAME}" -w || true)"
+if [ -z "${TLS_CERT_PASSWORD}" ]; then
+  TLS_CERT_PASSWORD="$(cat /dev/random | LC_ALL=C tr -dc a-zA-Z0-9 \
+  | head -c 43)"
+  security add-generic-password -a "${USER}" \
+  -s "${TLS_CERT_PASSWORD_NAME}" -w "${TLS_CERT_PASSWORD}"
+fi
+echo "${TLS_CERT_PASSWORD_NAME}: ${TLS_CERT_PASSWORD}"
+
+# Create TLS certificate key.
+openssl genrsa \
+  -aes256 \
+  -passout "pass:${TLS_CERT_PASSWORD}" \
+  -out "${CA_DIR}/private/${TLS_CERT_DOMAIN}.key.pem" 2048
+chmod 0400 "${CA_DIR}/private/${TLS_CERT_DOMAIN}.key.pem"
+
+# Create certificate signing request.
+cat <<EOD | openssl req -config /dev/stdin \
+  -passin "pass:${TLS_CERT_PASSWORD}" \
+  -key "${CA_DIR}/private/${TLS_CERT_DOMAIN}.key.pem" \
+  -new \
+  -sha256 \
+  -out "${CA_DIR}/csr/${TLS_CERT_DOMAIN}.csr.pem"
+[ req ]
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+prompt = no
+
+[ req_distinguished_name ]
+C = DE
+ST = Hamburg
+L = Hamburg
+O = $(id -F)
+CN = ${TLS_CERT_DOMAIN}
+
+[ v3_req ]
+basicConstraints = CA:FALSE
+keyUsage = keyEncipherment, dataEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[ alt_names ]
+DNS.1 = ${TLS_CERT_DOMAIN}
+DNS.2 = *.${TLS_CERT_DOMAIN}
+EOD
+
+# View certificate signing request.
+openssl req -in "${CA_DIR}/csr/${TLS_CERT_DOMAIN}.csr.pem" -text
+
+# Issue certificate.
+openssl ca \
+  -name "${CA}" \
+  -days 375 \
+  -notext \
+  -md sha256 \
+  -passin "pass:${CA_PASSWORD}" \
+  -in "${CA_DIR}/csr/${TLS_CERT_DOMAIN}.csr.pem" \
+  -out "${CA_DIR}/certs/${TLS_CERT_DOMAIN}.cert.pem"
+chmod 0444 "${CA_DIR}/certs/${TLS_CERT_DOMAIN}.cert.pem"
+
+# View certificate.
+openssl x509 -in "${CA_DIR}/certs/${TLS_CERT_DOMAIN}.cert.pem" \
+  -text
+
+# Verify certificate.
+# Make sure that you use the same parent CA here as above.
+PARENT_CA="$(id -F) Root CA"
+openssl verify -CAfile "${CA_BASE_DIR}/${PARENT_CA}/fullchain.pem" \
+  "${CA_DIR}/cert.pem"
+
+# Delete old certificate if it exists.
+kubectl --namespace "${K8S_NAMESPACE}" get secret minikube-tls 2>/dev/null && \
+  kubectl --namespace "${K8S_NAMESPACE}" delete secret minikube-tls
+
+# Import certificate into Kubernetes. We only import the chain, not the
+# full chain.
+kubectl --namespace "${K8S_NAMESPACE}" create secret tls minikube-tls \
+  --key <(openssl rsa \
+    -in "${CA_DIR}/private/${TLS_CERT_DOMAIN}.key.pem" \
+    -passin "pass:${TLS_CERT_PASSWORD}") \
+  --cert <(cat \
+    "${CA_DIR}/certs/${TLS_CERT_DOMAIN}.cert.pem" \
+    "${CA_DIR}/chain.pem")

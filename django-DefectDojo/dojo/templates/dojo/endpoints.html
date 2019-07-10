@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% load navigation_tags %}
+{% block content %}
+    <div class="row">
+        <div class="col-md-12">
+            <div class="panel panel-default">
+                <div class="panel-heading tight">
+                    <h3 class="has-filters">
+                        {{ name }}
+                        {% if request.user.is_staff %}
+                        <div class="dropdown pull-right">
+                            <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenu1"
+                                    data-toggle="dropdown" aria-expanded="true">
+                                <span class="fa fa-wrench"></span>
+                                <span class="caret"></span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-right" role="menu"
+                                aria-labelledby="dropdownMenu1">
+                                    <li role="presentation">
+                                      {% if product_tab %}
+                                        <a href="{% url 'add_endpoint' product_tab.product.id %}">
+                                      {% else %}
+                                        <a href="{% url 'add_product_endpoint' %}">
+                                      {% endif %}
+                                            <i class="fa fa-plus"></i> New Endpoint
+                                        </a>
+                                    </li>
+                            </ul>
+                        </div>
+                        {% endif %}
+                    </h3>
+                </div>
+                <div id="the-filters" class="panel-body collapse">
+                    {% include "dojo/filter_snippet.html" with form=filtered.form %}
+                </div>
+            </div>
+            {% if endpoints %}
+                <div class="clearfix">
+                    {% include "dojo/paging_snippet.html" with page=endpoints page_size=True %}
+                </div>
+
+                <div class="table-responsive panel panel-default">
+                    <table id="endpoints"
+                           class="tablesorter-bootstrap table table-condensed table-striped table-hover">
+                        <tr>
+                            <th>{% dojo_sort request 'Endpoint' 'host' %}</th>
+                            <th>{% dojo_sort request 'Product' 'product' 'asc' %}</th>
+                            <th nowrap="nowrap">Open Findings</th>
+                        </tr>
+
+                        {% for e in endpoints %}
+                            <tr>
+                                {% if show_uri %}
+                                <td><a href="{% url 'view_endpoint' e.id %}">{{ e }}</a>
+                                {% else %}
+                                <td><a href="{% url 'view_endpoint' e.id %}">{{ e.host_no_port }}</a>
+                                {% endif %}
+                                  {% if e.tags %}
+                                      <sup>
+                                          {% for tag in e.tags %}
+                                          <a title="Search {{ tag }}" class="tag-label tag-color" href="{% url 'simple_search' %}?query={{ tag }}">{{ tag }}</a>
+                                          {% endfor %}
+                                      </sup>
+                                  {% endif %}
+                                </td>
+                                <td><a href="{% url 'view_product' e.product.id %}">{{ e.product }}</a>
+                                  <sup>
+                                      {% for tag in e.product.tags %}
+                                          <a title="Search {{ tag }}" class="tag-label tag-color"
+                                             href="{% url 'simple_search' %}?query={{ tag }}">{{ tag }}</a>
+                                      {% endfor %}
+                                  </sup>
+                                </td>
+                                <td>
+                                  {% if e.finding_count > 0 %}
+                                  {% if tab_product %}
+                                  <a href="{% url 'product_open_findings' tab_product.id %}?test__engagement__product={{ tab_product.id }}&endpoints={{ e.id }}">{{ e.finding_count_endpoint }}</a>
+                                  {% else %}
+                                  <a href="{% url 'open_findings' %}?endpoints={{ e.id }}">{{ e.finding_count_endpoint }}</a>
+                                  {% endif %}
+                                  {% else %}
+                                  No Open, Active Findings
+                                  {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </table>
+                </div>
+                <div class="clearfix">
+                    {% include "dojo/paging_snippet.html" with page=endpoints page_size=True %}
+                </div>
+            {% else %}
+                <h5> No endpoints </h5>
+            {% endif %}
+        </div>
+    </div>
+
+{% endblock %}
+{% block postscript %}
+    {% include "dojo/filter_js_snippet.html" %}
+{% endblock %}

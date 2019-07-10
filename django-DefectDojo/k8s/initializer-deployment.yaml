@@ -1,0 +1,40 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  namespace: shsp-falco-dd
+  labels:
+    falcoapp: falco-dd-initializer
+  name: initializer
+spec:
+  replicas: 1
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        io.kompose.service: initializer
+    spec:
+      containers:
+      - command:
+        - /wait-for-it.sh
+        - mysql:3306
+        - --
+        - /entrypoint-initializer.sh
+        env:
+        - name: DD_ADMIN_FIRST_NAME
+          value: Admin
+        - name: DD_ADMIN_LAST_NAME
+          value: User
+        - name: DD_ADMIN_MAIL
+          value: admin@defectdojo.local
+        - name: DD_ADMIN_USER
+          value: admin
+        - name: DD_DATABASE_URL
+          value: mysql://defectdojo:defectdojo@mysql:3306/defectdojo
+        - name: DD_INITIALIZE
+          value: "true"
+        image: defectdojo/defectdojo-django:latest
+        name: initializer
+        resources: {}
+      restartPolicy: Always
+status: {}
